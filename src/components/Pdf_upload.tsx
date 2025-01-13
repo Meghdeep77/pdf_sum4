@@ -1,16 +1,42 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import jsPDF from "jspdf";
-import "./Pdf_upload.css";
 
 function Pdf_upload() {
   const [file, setFile] = useState<File | null>(null);
   const [summary, setSummary] = useState<string>("");
-  const [questions, setQuestions] = useState<string>(""); // State for generated questions
+  const [questions, setQuestions] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [displayedLines, setDisplayedLines] = useState<string[]>([]);
   const [typing, setTyping] = useState<boolean>(false);
-  const [selectedFileType, setSelectedFileType] = useState<string>("pdf"); // State for file type selection
+  const [selectedFileType, setSelectedFileType] = useState<string>("pdf");
+  const token = localStorage.getItem("token");
+  const [userId, setUserId] = useState<number | null>(null);
+
+  // Handle file selection
+  useEffect(() => {
+    const fetchUserId = async () => {
+      if (token) {
+        try {
+          console.log("Fetching user ID with token:", token); // Log token before making request
+          const response = await axios.get(
+            "http://127.0.0.1:8080/auth/user/me",
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          );
+          console.log("User ID response:", response.data); // Log response data
+          setUserId(response.data.id);
+        } catch (error) {
+          console.error("Error fetching user ID:", error); // Log error if it occurs
+        }
+      } else {
+        console.log("No token found in localStorage.");
+      }
+    };
+
+    fetchUserId(); // Call the function to fetch the user ID
+  }, [token]); // Dependency on token ensures this runs when the token changes
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -18,23 +44,30 @@ function Pdf_upload() {
     }
   };
 
+  // Handle file type selection (PDF or PPT)
   const handleFileTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedFileType(e.target.value); // Update selected file type (pdf or ppt)
+    setSelectedFileType(e.target.value);
   };
 
+  // Upload the selected file to generate a summary
   const handleUpload = async () => {
     if (!file) {
       alert("Please select a file first!");
       return;
     }
+    if (userId === null) {
+      alert("User not logged in or user ID is missing.");
+      return;
+    }
 
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("user_id", userId.toString());
 
     const endpoint =
       selectedFileType === "pdf"
         ? "http://127.0.0.1:8080/summarize_pdf/"
-        : "http://127.0.0.1:8080/summarize_ppt/"; // Change endpoint based on file type selection
+        : "http://127.0.0.1:8080/summarize_ppt/";
 
     try {
       setLoading(true);
@@ -43,18 +76,18 @@ function Pdf_upload() {
       });
 
       setSummary(response.data.summary);
-      setQuestions(""); // Clear previously generated questions
+      setQuestions("");
     } catch (error) {
-      if (axios.isAxiosError(error)) {
-        console.error("Error:", error.message);
-      } else {
-        console.error("An unknown error occurred", error);
-      }
+      console.error(
+        "Error:",
+        axios.isAxiosError(error) ? error.message : error
+      );
     } finally {
       setLoading(false);
     }
   };
 
+  // Generate questions from the uploaded file
   const handleGenerateQuestions = async () => {
     if (!file) {
       alert("Please select a file first!");
@@ -67,7 +100,7 @@ function Pdf_upload() {
     const endpoint =
       selectedFileType === "pdf"
         ? "http://127.0.0.1:8080/gen_ques_pdf"
-        : "http://127.0.0.1:8080/gen_ques_ppt"; // Change endpoint based on file type selection
+        : "http://127.0.0.1:8080/gen_ques_ppt";
 
     try {
       setLoading(true);
@@ -75,120 +108,144 @@ function Pdf_upload() {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
-      setQuestions(response.data.summary); // Set generated questions
-      setSummary(""); // Clear previous summary
+      setQuestions(response.data.summary);
+      setSummary("");
     } catch (error) {
-      if (axios.isAxiosError(error)) {
-        console.error("Error:", error.message);
-      } else {
-        console.error("An unknown error occurred", error);
-      }
+      console.error(
+        "Error:",
+        axios.isAxiosError(error) ? error.message : error
+      );
     } finally {
       setLoading(false);
     }
   };
 
+  // Handle typing effect for displaying content
   useEffect(() => {
     const displayContent = summary || questions;
     if (displayContent) {
       const lines = displayContent.split("\n");
-      setDisplayedLines([]); // Reset displayed lines
+      setDisplayedLines([]);
       setTyping(true);
 
       lines.forEach((line, index) => {
         setTimeout(() => {
           setDisplayedLines((prev) => [...prev, line]);
           if (index === lines.length - 1) setTyping(false);
-        }, index * 500); // Adjust delay (500ms) for typing speed
+        }, index * 500);
       });
     }
   }, [summary, questions]);
 
+  // Download content (summary or questions) as a PDF
   const handleDownload = async () => {
-    const content = summary || questions; // Choose summary or questions to download
+    const content = summary || questions;
     if (!content) {
       alert("No content available to download!");
       return;
     }
 
-    // Create a new PDF document
     const doc = new jsPDF();
-    let yPosition = 10; // Initial vertical position
-    const lineHeight = 10; // Line height
+    const margin = 10;
+    const pageWidth = doc.internal.pageSize.getWidth() - 2 * margin;
 
-    // Split the content into lines
-    const lines = content.split("\n");
+    const lines = doc.splitTextToSize(content, pageWidth); // Wrap text to fit page width
+    let yPosition = margin;
 
-    // Loop through lines and add text to the PDF
-    lines.forEach((line) => {
-      const parts = line.split(/(\*\*.*?\*\*)/); // Split by bold markers `**`
-      let xPosition = 10; // Reset xPosition for each line
-
-      parts.forEach((part) => {
-        if (part.startsWith("**") && part.endsWith("**")) {
-          // Bold text
-          const text = part.slice(2, -2); // Remove `**`
-          doc.setFont("Helvetica", "bold");
-          doc.text(text, xPosition, yPosition);
-        } else {
-          // Normal text
-          doc.setFont("Helvetica", "normal");
-          doc.text(part, xPosition, yPosition);
-        }
-        xPosition += doc.getTextWidth(part) + 2; // Increment xPosition
-      });
-
-      yPosition += lineHeight;
-
-      // Check if the yPosition exceeds the page height and add a new page if necessary
-      if (yPosition > 280) {
+    for (const line of lines) {
+      // Check if the text fits on the current page
+      if (yPosition + 10 > doc.internal.pageSize.getHeight() - margin) {
         doc.addPage();
-        yPosition = 10; // Reset yPosition for the new page
+        yPosition = margin;
       }
-    });
 
-    // Save the PDF file
+      doc.text(line, margin, yPosition);
+      yPosition += 10; // Move down for the next line
+    }
+
     doc.save(questions ? "questions.pdf" : "summary.pdf");
   };
 
-  return (
-    <div style={{ padding: "20px" }}>
-      <h1>File Processor</h1>
+  // Format line for display, handling bold markers
+  const formatLine = (line: string) => {
+    const trimmedLine = line.trim();
+    const isBold = trimmedLine.includes("**");
+    const isBulletPoint = trimmedLine.startsWith("-");
 
-      {/* Select file type (PDF or PPT) */}
-      <div>
-        <label>Select File Type: </label>
-        <select value={selectedFileType} onChange={handleFileTypeChange}>
+    if (isBulletPoint) {
+      const content = trimmedLine.slice(1).trim(); // Remove the dash
+      if (isBold) {
+        const boldParts = content.split("**");
+        return (
+          <li className="list-disc pl-5">
+            {boldParts.map((part, index) =>
+              index % 2 === 1 ? <strong key={index}>{part}</strong> : part
+            )}
+          </li>
+        );
+      }
+      return <li className="list-disc pl-5">{content}</li>;
+    } else if (isBold) {
+      const boldParts = trimmedLine.split("**");
+      return (
+        <>
+          {boldParts.map((part, index) =>
+            index % 2 === 1 ? <strong key={index}>{part}</strong> : part
+          )}
+        </>
+      );
+    }
+
+    return line;
+  };
+
+  return (
+    <div className="container mx-auto p-5 max-w-3xl">
+      <h1 className="text-center text-3xl font-bold mb-5">File Processor</h1>
+
+      <div className="flex justify-center gap-4 mb-4">
+        <select
+          className="p-3 border border-gray-300 rounded-md"
+          value={selectedFileType}
+          onChange={handleFileTypeChange}
+        >
           <option value="pdf">PDF</option>
           <option value="ppt">PPT</option>
         </select>
+
+        <label className="cursor-pointer bg-blue-500 text-white p-3 rounded-md">
+          {file ? file.name : "Choose a file"}
+          <input
+            type="file"
+            className="hidden"
+            accept={
+              selectedFileType === "pdf"
+                ? "application/pdf"
+                : "application/vnd.ms-powerpoint, application/vnd.openxmlformats-officedocument.presentationml.presentation"
+            }
+            onChange={handleFileChange}
+          />
+        </label>
       </div>
 
-      {/* File input */}
-      <input
-        type="file"
-        accept={
-          selectedFileType === "pdf"
-            ? "application/pdf"
-            : "application/vnd.ms-powerpoint, application/vnd.openxmlformats-officedocument.presentationml.presentation"
-        }
-        onChange={handleFileChange}
-      />
-
-      {/* Upload button */}
-      <div>
-        <button onClick={handleUpload} disabled={loading}>
+      <div className="flex justify-center gap-4 mb-4">
+        <button
+          className="bg-gradient-to-r from-blue-500 to-green-400 text-white p-3 rounded-md"
+          onClick={handleUpload}
+          disabled={loading || !file}
+        >
           {loading
-            ? "Uploading..."
+            ? "Processing..."
             : selectedFileType === "pdf"
             ? "Summarize PDF"
             : "Summarize PPT"}
         </button>
-      </div>
 
-      {/* Generate Questions button */}
-      <div>
-        <button onClick={handleGenerateQuestions} disabled={loading}>
+        <button
+          className="bg-gradient-to-r from-red-500 to-yellow-400 text-white p-3 rounded-md"
+          onClick={handleGenerateQuestions}
+          disabled={loading || !file}
+        >
           {loading
             ? "Generating..."
             : selectedFileType === "pdf"
@@ -197,26 +254,31 @@ function Pdf_upload() {
         </button>
       </div>
 
-      {/* Display content (summary or questions) */}
       {displayedLines.length > 0 && (
-        <div>
-          <h2>{summary ? "Summary:" : "Questions:"}</h2>
+        <div className="bg-gray-100 p-5 rounded-lg mt-5">
+          <h2 className="text-2xl font-semibold mb-4">
+            {summary ? "Summary:" : "Questions:"}
+          </h2>
           <div>
             {displayedLines.map((line, index) => (
               <p
                 key={index}
+                className={typing ? "typing-effect" : ""}
                 style={{
-                  fontWeight: line.trim().endsWith(":") ? "bold" : "normal",
+                  fontWeight: line.trim().endsWith(":") ? "600" : "400",
                   fontSize: line.trim().endsWith(":") ? "1.2rem" : "1rem",
-                  marginBottom: line.trim().endsWith(":") ? "8px" : "4px",
+                  marginBottom: line.trim().endsWith(":") ? "12px" : "8px",
                 }}
               >
-                {line}
+                {formatLine(line)}
               </p>
             ))}
           </div>
           {!typing && (
-            <button onClick={handleDownload}>
+            <button
+              className="bg-gradient-to-r from-blue-500 to-green-400 text-white p-3 rounded-md"
+              onClick={handleDownload}
+            >
               Download {summary ? "Summary" : "Questions"} as PDF
             </button>
           )}
