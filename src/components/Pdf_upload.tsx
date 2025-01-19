@@ -93,9 +93,13 @@ function Pdf_upload() {
       alert("Please select a file first!");
       return;
     }
-
+    if (!userId) {
+      alert("Invalid User");
+      return;
+    }
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("user_id", userId.toString());
 
     const endpoint =
       selectedFileType === "pdf"
@@ -108,7 +112,8 @@ function Pdf_upload() {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
-      setQuestions(response.data.summary);
+      setQuestions(response.data.questions);
+      console.log("Questions: ", response.data.questions);
       setSummary("");
     } catch (error) {
       console.error(
@@ -203,6 +208,15 @@ function Pdf_upload() {
     <div className="container mx-auto p-5 max-w-3xl">
       <h1 className="text-center text-3xl font-bold mb-5">File Processor</h1>
 
+      {/* Notice Section */}
+      <div className="bg-yellow-100 text-yellow-800 p-3 rounded-md mb-5 border border-yellow-300">
+        <p>
+          <strong>Note:</strong> PDFs must contain text content and not images
+          of text (e.g., scanned documents). Ensure your file meets this
+          requirement for accurate processing.
+        </p>
+      </div>
+
       <div className="flex justify-center gap-4 mb-4">
         <select
           className="p-3 border border-gray-300 rounded-md"
@@ -287,5 +301,4 @@ function Pdf_upload() {
     </div>
   );
 }
-
 export default Pdf_upload;
