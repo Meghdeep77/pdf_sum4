@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useHistory } from "react-router-dom"; // For navigation in React Router v5
-
+const apiUrl = import.meta.env.VITE_API_URL;
 const Login: React.FC = () => {
   const [formData, setFormData] = useState({
     username: "",
@@ -22,7 +22,7 @@ const Login: React.FC = () => {
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:8080/auth/login", {
+      const response = await fetch(`${apiUrl}/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

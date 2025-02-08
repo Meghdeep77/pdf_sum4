@@ -1,6 +1,6 @@
-import Header from "./components/Header";
-import Pdf_upload from "./components/Pdf_upload";
-import Footer from "./components/Footer";
+import Header from "../components/Header";
+import Pdf_upload from "../components/Pdf_upload";
+import Footer from "../components/Footer";
 
 function Summ() {
   return (

@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { Route, Redirect } from "react-router-dom";
-
+const apiUrl = import.meta.env.VITE_API_URL;
 // Function to check if the token is valid (via server)
 const isTokenExpired = async (token: string): Promise<boolean> => {
   try {
-    const response = await fetch("http://localhost:8080/auth/user/me", {
+    const response = await fetch(`${apiUrl}/auth/user/me`, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${token}`, // Send the token to the server

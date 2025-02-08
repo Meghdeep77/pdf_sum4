@@ -12,31 +12,44 @@ function Pdf_upload() {
   const [selectedFileType, setSelectedFileType] = useState<string>("pdf");
   const token = localStorage.getItem("token");
   const [userId, setUserId] = useState<number | null>(null);
+  const apiUrl = import.meta.env.VITE_API_URL;
 
   // Handle file selection
-  useEffect(() => {
-    const fetchUserId = async () => {
-      if (token) {
-        try {
-          console.log("Fetching user ID with token:", token); // Log token before making request
-          const response = await axios.get(
-            "http://127.0.0.1:8080/auth/user/me",
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            }
-          );
-          console.log("User ID response:", response.data); // Log response data
-          setUserId(response.data.id);
-        } catch (error) {
-          console.error("Error fetching user ID:", error); // Log error if it occurs
-        }
-      } else {
-        console.log("No token found in localStorage.");
-      }
-    };
+  const fetchUserId = async () => {
+    if (!token) {
+      console.log("No token found.");
+      return { userId: null, access: false };
+    }
 
-    fetchUserId(); // Call the function to fetch the user ID
-  }, [token]); // Dependency on token ensures this runs when the token changes
+    try {
+      console.log("Fetching user ID...");
+      const response = await axios.get(`${apiUrl}/auth/user/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      console.log("User Data:", response.data);
+      const userId = response.data.id;
+      const userAccess = response.data.access;
+
+      setUserId(userId);
+
+      if (userAccess == "False") {
+        alert("Your free trial has expired. Please subscribe to continue.");
+        window.location.href = "/pricing"; // Redirect to the pricing page
+      }
+
+      return { userId, access: userAccess };
+    } catch (error) {
+      console.error("Error fetching user ID:", error);
+      return { userId: null, access: false };
+    }
+  };
+
+  // Fetch user ID on component mount
+  useEffect(() => {
+    fetchUserId();
+  }, [token]);
+  // Dependency on token ensures this runs when the token changes
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -59,6 +72,8 @@ function Pdf_upload() {
       alert("User not logged in or user ID is missing.");
       return;
     }
+    const response = await fetchUserId();
+    console.log("User Acess:", response.access);
 
     const formData = new FormData();
     formData.append("file", file);
@@ -66,8 +81,8 @@ function Pdf_upload() {
 
     const endpoint =
       selectedFileType === "pdf"
-        ? "http://127.0.0.1:8080/summarize_pdf/"
-        : "http://127.0.0.1:8080/summarize_ppt/";
+        ? `${apiUrl}/summarize_pdf`
+        : `${apiUrl}/summarize_ppt`;
 
     try {
       setLoading(true);
@@ -82,6 +97,7 @@ function Pdf_upload() {
         "Error:",
         axios.isAxiosError(error) ? error.message : error
       );
+      alert("An error occured please try again or upload a different file");
     } finally {
       setLoading(false);
     }
@@ -97,14 +113,16 @@ function Pdf_upload() {
       alert("Invalid User");
       return;
     }
+    const response = await fetchUserId();
+    console.log("User Acess:", response.access);
     const formData = new FormData();
     formData.append("file", file);
     formData.append("user_id", userId.toString());
 
     const endpoint =
       selectedFileType === "pdf"
-        ? "http://127.0.0.1:8080/gen_ques_pdf"
-        : "http://127.0.0.1:8080/gen_ques_ppt";
+        ? `${apiUrl}/gen_ques_pdf`
+        : `${apiUrl}/gen_ques_ppt`;
 
     try {
       setLoading(true);
@@ -120,6 +138,7 @@ function Pdf_upload() {
         "Error:",
         axios.isAxiosError(error) ? error.message : error
       );
+      alert("An error occured please try again or upload a different file");
     } finally {
       setLoading(false);
     }

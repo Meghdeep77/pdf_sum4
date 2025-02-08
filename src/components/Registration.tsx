@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useHistory } from "react-router-dom"; // Import useHistory hook
-
+const apiUrl = import.meta.env.VITE_API_URL;
 const Registration: React.FC = () => {
   const [formData, setFormData] = useState({
     username: "",
@@ -24,6 +24,16 @@ const Registration: React.FC = () => {
     setError("");
     setSuccess("");
 
+    if (formData.username.length < 3) {
+      setError("Username must be at least 3 characters long.");
+      return;
+    }
+
+    if (formData.password.length < 8) {
+      setError("Password must be at least 8 characters long.");
+      return;
+    }
+
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match!");
       return;
@@ -39,7 +49,7 @@ const Registration: React.FC = () => {
     console.log("Payload being sent:", payload);
 
     try {
-      const response = await fetch("http://localhost:8080/register", {
+      const response = await fetch(`${apiUrl}/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -93,6 +103,9 @@ const Registration: React.FC = () => {
             required
             className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
           />
+          <p className="text-gray-500 text-xs mt-1">
+            Username must be at least 3 characters long.
+          </p>
         </div>
 
         <div className="form-group">
@@ -129,6 +142,9 @@ const Registration: React.FC = () => {
             required
             className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
           />
+          <p className="text-gray-500 text-xs mt-1">
+            Password must be at least 8 characters long.
+          </p>
         </div>
 
         <div className="form-group">

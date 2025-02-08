@@ -23,12 +23,6 @@ const Footer: React.FC = () => {
           >
             Terms of Service
           </a>
-          <a
-            href="/faq"
-            className="text-white hover:text-[#f1c40f] mx-2 text-xs"
-          >
-            FAQ
-          </a>
         </nav>
         <div className="social-links mb-2">
           <a
