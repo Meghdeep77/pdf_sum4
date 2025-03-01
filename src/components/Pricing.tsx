@@ -52,7 +52,7 @@ export default function Pricing() {
                 {" "}
                 one-time payment
               </span>{" "}
-              of just <span className="font-bold text-gray-900">₹250</span>.
+              of just <span className="font-bold text-gray-900">₹100</span>.
             </p>
 
             <div className="bg-indigo-100 p-5 rounded-lg shadow-md">
