@@ -79,7 +79,7 @@ export default function AboutUs() {
                 study and more about understanding and mastering the subject.
               </p>
               <h2 className="text-2xl font-semibold text-gray-800 mt-8 mb-4">
-                This Website is Owned and Managed by Meghdeep Roychoudhury
+                This Website is Owned and Managed by 
               </h2>
             </section>
           </div>
